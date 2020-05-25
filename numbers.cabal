@@ -31,7 +31,9 @@ source-repository this
 
 Library
   Build-Depends:
-    base >= 3 && < 5
+    base >= 3 && < 5,
+    ieee754,
+    integer-logarithms
 
   Exposed-modules:
     Data.Number.Symbolic Data.Number.Dif

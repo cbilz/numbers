@@ -9,11 +9,14 @@
 module Data.Number.CReal
   ( CReal
   , showCReal
+  , toDouble
   , (==:), (/=:), (<=:), (<:), (>=:), (>:)
   , signumApprox
   ) where
 import Data.Ratio (numerator, denominator, (%))
+import Math.NumberTheory.Logarithms (integerLog2)
 import Numeric(readFloat, readSigned)
+import Numeric.IEEE (infinity)
 
 -- |The 'CReal' type implements (constructive) real numbers.
 --
@@ -225,6 +228,22 @@ showCReal d (CR x')
           fs' = case reverse $ dropWhile (== '0') $ reverse fs of
                 "" -> "0"
                 xs -> xs
+
+toDouble :: CReal -> Double
+toDouble (CR x') = enc $ head $ dropWhile notEnoughSignificantBits $
+  map (\p -> (x' p, -p)) [0..]
+  where
+    notEnoughSignificantBits (s, p) = log2 s < dig + 10 - max 0 (minExp - p)
+    log2 x = integerLog2 (max (abs x) 1)
+    enc (s, p)
+      | s == 0 = 0
+      | s' == 0 = 0
+      | s' /= 0 && log2 s' < dig = encodeFloat s' p'
+      | otherwise = (fromInteger $ signum s') * infinity
+      where p' = max (min (p + off) maxExp) (minExp - dig + 1)
+            off = log2 s - (dig - 1)
+            s' = if p' > p then round (s % 2^(p'-p)) else s * 2^(p-p')
+    (dig, minExp, maxExp) = (53, -1022, 1023)
 
 digitsToBits :: Int -> Int
 digitsToBits d = ceiling (fromIntegral d * (logBase 2.0 10.0 :: Double)) + 4
