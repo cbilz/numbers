@@ -6,8 +6,13 @@
 -- David Lester, Department of Computer Science, Manchester University, M13 9PL.
 --           (2000-2001)
 
-module Data.Number.CReal(CReal, showCReal) where
-import Data.Ratio
+module Data.Number.CReal
+  ( CReal
+  , showCReal
+  , (==:), (/=:), (<=:), (<:), (>=:), (>:)
+  , signumApprox
+  ) where
+import Data.Ratio (numerator, denominator, (%))
 import Numeric(readFloat, readSigned)
 
 -- |The 'CReal' type implements (constructive) real numbers.
@@ -20,15 +25,24 @@ import Numeric(readFloat, readSigned)
 data CReal = CR (Int -> Integer)
 
 instance Eq  CReal where
-  x == y = s' (digitsToBits digits) == 0 where (CR s') = x-y
+  x == y = null $ sigDiff x y
 
 instance Ord CReal where
-  x <= y = s' (digitsToBits digits) <= 0 where (CR s') = x-y
-  x <  y = s' (digitsToBits digits) <  0 where (CR s') = x-y
-  x >= y = s' (digitsToBits digits) >= 0 where (CR s') = x-y
-  x >  y = s' (digitsToBits digits) >  0 where (CR s') = x-y
+  compare x y = compare (head $ sigDiff x y) 0
   max (CR x') (CR y') = CR (\p -> max (x' p) (y' p))
   min (CR x') (CR y') = CR (\p -> min (x' p) (y' p))
+
+infix  4  ==:, /=:, <=:, <:, >=:, >:
+
+-- Approximate comparison operators. These always terminate. These relations
+-- are not transitive.
+(==:), (/=:), (<=:), (<:), (>=:), (>:) :: CReal -> CReal -> Bool
+(CR x') ==: (CR y') = abs(x' bits - y' bits) <= 2
+(CR x') /=: (CR y') = abs(x' bits - y' bits) > 2
+(CR x') <=: (CR y') = x' bits - y' bits <= 2
+(CR x') <: (CR y') = x' bits - y' bits < -2
+(CR x') >=: (CR y') = x' bits - y' bits >= -2
+(CR x') >: (CR y') = x' bits - y' bits > 2
 
 instance Num CReal where
   (CR x') + (CR y') = CR (\p -> round_uk ((x' (p+2) + y' (p+2)) % 4))
@@ -37,8 +51,11 @@ instance Num CReal where
                               sx = sizeinbase x0 2+3; sy = sizeinbase y0 2+3
   negate (CR x')    = CR (\p -> negate (x' p))
   abs x             = max x (negate x)
-  signum (CR x')    = fromInteger (signum (x' (digitsToBits digits)))
+  signum x          = fromInteger $ signum $ head $ sig x
   fromInteger n     = CR (\p -> n*2^p)
+
+signumApprox :: CReal -> CReal
+signumApprox (CR x') = fromInteger (signum (x' bits))
 
 instance Fractional CReal where
   recip (CR x') = CR (\p -> let s = head [n | n <- [0..], 3 <= abs (x' n)]
@@ -214,6 +231,19 @@ digitsToBits d = ceiling (fromIntegral d * (logBase 2.0 10.0 :: Double)) + 4
 
 digits :: Int
 digits = 40
+
+bits :: Int
+bits = digitsToBits digits
+
+sig :: CReal -> [Integer]
+sig (CR x') =
+  dropWhile insignificant $ map (\p -> x' p) [0..]
+  where insignificant n = n <= 1 && n >= -1
+
+sigDiff :: CReal -> CReal -> [Integer]
+sigDiff (CR x') (CR y') =
+  dropWhile insignificant $ map (\p -> (x' p) - (y' p)) [0..]
+  where insignificant n = n <= 2 && n >= -2
 
 instance Read CReal where
   readsPrec _p = readSigned readFloat
