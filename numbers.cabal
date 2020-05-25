@@ -1,6 +1,6 @@
 Name:           numbers
 -- don't forget to bump the "this" source tag
-Version:        3000.2.0.2
+Version:        3000.2.0.3
 License:        BSD3
 License-file:   LICENSE
 Author:         Lennart Augustsson
