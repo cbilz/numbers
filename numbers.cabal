@@ -57,6 +57,8 @@ test-suite testsuite
   main-is: TestSuite.hs
   build-depends:
     base                        >= 3 && < 5,
+    ieee754,
+    integer-logarithms,
     -- Additional test dependencies.
     QuickCheck                  == 2.*,
     test-framework              >= 0.6,
@@ -64,3 +66,4 @@ test-suite testsuite
 
   other-modules:
     Test.Data.Number.BigFloat
+    Test.Data.Number.CReal
