@@ -10,8 +10,8 @@ module Data.Number.CReal
   ( CReal
   , showCReal
   , toDouble
-  , (==:), (/=:), (<=:), (<:), (>=:), (>:)
-  , signumApprox
+  , appRel
+  , appSignum
   ) where
 import Data.Ratio (numerator, denominator, (%))
 import Math.NumberTheory.Logarithms (integerLog2)
@@ -27,25 +27,37 @@ import Numeric.IEEE (infinity)
 -- This implementation is really David Lester's ERA package.
 data CReal = CR (Int -> Integer)
 
-instance Eq  CReal where
-  x == y = null $ sigDiff x y
+instance Eq CReal where
+  (==) = appRel maxBound (==)
 
 instance Ord CReal where
-  compare x y = compare (head $ sigDiff x y) 0
+  compare = appRel maxBound compare
   max (CR x') (CR y') = CR (\p -> max (x' p) (y' p))
   min (CR x') (CR y') = CR (\p -> min (x' p) (y' p))
 
-infix  4  ==:, /=:, <=:, <:, >=:, >:
+-- Terminating approximations of order relations on 'Integer'. It is required
+-- that the value of 'k `rel` m' only depends on the signum of 'k - m'. This
+-- precondition is not checked.
+appRel :: Int -> (Integer -> Integer -> a) -> CReal -> CReal -> a
+appRel n rel x y = (appSignum' n (x-y)) `rel` 0
 
--- Approximate comparison operators. These always terminate. These relations
--- are not transitive.
-(==:), (/=:), (<=:), (<:), (>=:), (>:) :: CReal -> CReal -> Bool
-(CR x') ==: (CR y') = abs(x' bits - y' bits) <= 2
-(CR x') /=: (CR y') = abs(x' bits - y' bits) > 2
-(CR x') <=: (CR y') = x' bits - y' bits <= 2
-(CR x') <: (CR y') = x' bits - y' bits < -2
-(CR x') >=: (CR y') = x' bits - y' bits >= -2
-(CR x') >: (CR y') = x' bits - y' bits > 2
+-- A terminating approximation of the signum function. If the absolute value
+-- of x is...
+--   - greater than or equal to 1/2^n, then 'appSignum n x' is the correct
+--     signum of x.
+--   - strictly smaller than 1/2^n, then 'appSignum n x' is either the correct
+--     signum of x or zero.
+appSignum :: Int -> CReal -> CReal
+appSignum n = fromInteger . appSignum' n
+
+appSignum' :: Int -> CReal -> Integer
+appSignum' n = signum . (`quot` 2) . snd . sig (\p y -> abs y > 1 || p > n)
+
+sig :: (Int -> Integer -> Bool) -> CReal -> (Int, Integer)
+sig satisfy (CR x') = head . dropWhile (not . (uncurry satisfy)) $
+  graph x' scales
+  where graph f lst = zip lst (map f lst)
+        scales = map (2^) [0..]
 
 instance Num CReal where
   (CR x') + (CR y') = CR (\p -> round_uk ((x' (p+2) + y' (p+2)) % 4))
@@ -54,11 +66,8 @@ instance Num CReal where
                               sx = sizeinbase x0 2+3; sy = sizeinbase y0 2+3
   negate (CR x')    = CR (\p -> negate (x' p))
   abs x             = max x (negate x)
-  signum x          = fromInteger $ signum $ head $ sig x
+  signum            = appSignum maxBound
   fromInteger n     = CR (\p -> n*2^p)
-
-signumApprox :: CReal -> CReal
-signumApprox (CR x') = fromInteger (signum (x' bits))
 
 instance Fractional CReal where
   recip (CR x') = CR (\p -> let s = head [n | n <- [0..], 3 <= abs (x' n)]
@@ -230,19 +239,18 @@ showCReal d (CR x')
                 xs -> xs
 
 toDouble :: CReal -> Double
-toDouble (CR x') = enc $ head $ dropWhile notEnoughSignificantBits $
-  map (\p -> (x' p, -p)) [0..]
+toDouble = enc . sig enoughSignificantBits
   where
-    notEnoughSignificantBits (s, p) = log2 s < dig + 10 - max 0 (minExp - p)
-    log2 x = integerLog2 (max (abs x) 1)
-    enc (s, p)
+    enoughSignificantBits p s = log2 s >= dig + 10 - max 0 (minExp + p)
+    log2 s = integerLog2 (max (abs s) 1)
+    enc (p,s)
       | s == 0 = 0
       | s' == 0 = 0
-      | s' /= 0 && log2 s' < dig = encodeFloat s' p'
+      | s' /= 0 && log2 s' < dig = encodeFloat s' (-p')
       | otherwise = (fromInteger $ signum s') * infinity
-      where p' = max (min (p + off) maxExp) (minExp - dig + 1)
+      where p' = -max (min (-p + off) maxExp) (minExp - dig + 1)
             off = log2 s - (dig - 1)
-            s' = if p' > p then round (s % 2^(p'-p)) else s * 2^(p-p')
+            s' = if -p' > -p then round (s % 2^(-p'+p)) else s * 2^(-p+p')
     (dig, minExp, maxExp) = (53, -1022, 1023)
 
 digitsToBits :: Int -> Int
@@ -250,19 +258,6 @@ digitsToBits d = ceiling (fromIntegral d * (logBase 2.0 10.0 :: Double)) + 4
 
 digits :: Int
 digits = 40
-
-bits :: Int
-bits = digitsToBits digits
-
-sig :: CReal -> [Integer]
-sig (CR x') =
-  dropWhile insignificant $ map (\p -> x' p) [0..]
-  where insignificant n = n <= 1 && n >= -1
-
-sigDiff :: CReal -> CReal -> [Integer]
-sigDiff (CR x') (CR y') =
-  dropWhile insignificant $ map (\p -> (x' p) - (y' p)) [0..]
-  where insignificant n = n <= 2 && n >= -2
 
 instance Read CReal where
   readsPrec _p = readSigned readFloat
