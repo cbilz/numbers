@@ -1,6 +1,3 @@
-[![Build Status](https://travis-ci.org/DanBurton/numbers.png?branch=master)](https://travis-ci.org/DanBurton/numbers)
-
-
 I've copied the "numbers" package
 to my own git repository
 so that the changes from the old version
