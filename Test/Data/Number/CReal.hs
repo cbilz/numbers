@@ -11,7 +11,7 @@ implies x y = y || not x
 dblEq x y = x == y || x == succIEEE y || x == predIEEE y
 
 prop_creal_some_algebraic_equalities :: Bool
-prop_creal_some_algebraic_equalities = all (uncurry (==:))
+prop_creal_some_algebraic_equalities = all (uncurry (appRel 1000 (==)))
   ([ (sqrt 8, 2 * sqrt 2)
    , (1/(sqrt 2 - sqrt 3 + sqrt 5), (sqrt 2)/4 - (sqrt 3)/6 + (sqrt 30)/12)
    , (1 - 1, 0)
