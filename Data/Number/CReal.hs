@@ -16,7 +16,6 @@ module Data.Number.CReal
 import Data.Ratio (numerator, denominator, (%))
 import Math.NumberTheory.Logarithms (integerLog2)
 import Numeric(readFloat, readSigned)
-import Numeric.IEEE (infinity)
 
 -- |The 'CReal' type implements (constructive) real numbers.
 --
@@ -255,7 +254,7 @@ toDouble = enc . sig enoughSignificantBits
       | s == 0 = 0
       | s' == 0 = 0
       | s' < 2^(dig+1) = encodeFloat s' (-p')
-      | otherwise = (fromInteger $ signum s') * infinity
+      | otherwise = (fromInteger $ signum s') * (1/0)
       where p' = -max (min (-p + off) maxExp) (minExp - dig + 1)
             off = log2 s - dig
             s' = if -p' > -p then round (s % 2^(-p'+p)) else s * 2^(-p+p')
