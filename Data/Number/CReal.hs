@@ -238,19 +238,21 @@ showCReal d (CR x')
                 "" -> "0"
                 xs -> xs
 
+-- |The 'toDouble' function converts a 'CReal' to one of the two nearest
+-- values of 'Double'. Rounds half to even.
 toDouble :: CReal -> Double
 toDouble = enc . sig enoughSignificantBits
   where
     enoughSignificantBits p s = log2 s >= dig + 10 - max 0 (minExp + p)
-    log2 s = integerLog2 (max (abs s) 1)
     enc (p,s)
       | s == 0 = 0
       | s' == 0 = 0
-      | s' /= 0 && log2 s' < dig = encodeFloat s' (-p')
+      | s' < 2^(dig+1) = encodeFloat s' (-p')
       | otherwise = (fromInteger $ signum s') * infinity
       where p' = -max (min (-p + off) maxExp) (minExp - dig + 1)
-            off = log2 s - (dig - 1)
+            off = log2 s - dig
             s' = if -p' > -p then round (s % 2^(-p'+p)) else s * 2^(-p+p')
+    log2 x = integerLog2 (max (abs x) 1)
     (dig, minExp, maxExp) = (53, -1022, 1023)
 
 digitsToBits :: Int -> Int
