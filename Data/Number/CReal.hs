@@ -35,19 +35,26 @@ instance Ord CReal where
   max (CR x') (CR y') = CR (\p -> max (x' p) (y' p))
   min (CR x') (CR y') = CR (\p -> min (x' p) (y' p))
 
--- Terminating approximations of order relations on 'Integer'. It is required
--- that the value of 'k `rel` m' only depends on the signum of 'k - m'. This
--- precondition is not checked.
-appRel :: Int -> (Integer -> Integer -> a) -> CReal -> CReal -> a
+-- |Terminating approximations of order relations lifted from 'Integer' to
+-- 'CReal'. If the absolute value of @x-y@ is greater than or equal to @1/2^n@
+-- for some 'Integer' @n@, then @'appRel' n rel x y = s ``rel`` 0@ where @s@
+-- is the 'Integer' such that @'signum' (x-y)@ and @'fromInteger' s@ represent
+-- the same real number. On the other hand, if the absolute value of @x-y@ is
+-- less than @1/2^n@, then @'appRel' n rel x y@ is either @s@ or @0@.
+appRel :: Int                       -- ^ The specified accuracy
+       -> (Integer -> Integer -> a) -- ^ The relation to be lifted and approximated
+       -> CReal                     -- ^ The first real number to be compared
+       -> CReal                     -- ^ The second real number to be compared
+       -> a             -- ^ The approximate value of the lifted relation
 appRel n rel x y = (appSignum' n (x-y)) `rel` 0
 
--- A terminating approximation of the signum function. If the absolute value
--- of x is...
---   - greater than or equal to 1/2^n, then 'appSignum n x' is the correct
---     signum of x.
---   - strictly smaller than 1/2^n, then 'appSignum n x' is either the correct
---     signum of x or zero.
-appSignum :: Int -> CReal -> CReal
+-- |A terminating approximation of the 'signum' function on 'CReal'. If the
+-- absolute value of @x@ is greater than or equal to @1/2^n@, then @appSignum
+-- n x = 'signum' x@. Otherwise, @appSignum n x@ is either @'signum' x@ or
+-- @0@.
+appSignum :: Int     -- ^ The specified accuracy
+          -> CReal   -- ^ The real number
+          -> CReal   -- ^ The approximate signum
 appSignum n = fromInteger . appSignum' n
 
 appSignum' :: Int -> CReal -> Integer
