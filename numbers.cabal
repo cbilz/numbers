@@ -32,7 +32,6 @@ source-repository this
 Library
   Build-Depends:
     base >= 3 && < 5,
-    ieee754,
     integer-logarithms
 
   Exposed-modules:
